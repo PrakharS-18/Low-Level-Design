@@ -1,4 +1,4 @@
-package LLD.Structural_Design_Pattern.Adapter_Pattern;
+package LLD.Structural_Design_Pattern.Adapter_Pattern_1;
 
 public class LegacyMP {
     IMediaAdapter iMediaAdapter = new MediaAdapterConcrete(new ModernMP());
