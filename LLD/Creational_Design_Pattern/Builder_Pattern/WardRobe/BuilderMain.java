@@ -1,4 +1,4 @@
-package LLD.Creational_Design_Pattern.Builder_Pattern;
+package LLD.Creational_Design_Pattern.Builder_Pattern.WardRobe;
 
 public class BuilderMain {
     public static void main(String[] args) {
