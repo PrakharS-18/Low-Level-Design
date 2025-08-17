@@ -1,4 +1,4 @@
-package LLD.Structural_Design_Pattern.Adapter_Design_2;
+package LLD.Structural_Design_Pattern.Adapater_Pattern.Adapter_Design_2;
 
 public class AdapterMain {
     public static void main(String[] args) {
