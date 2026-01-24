@@ -1,106 +1,68 @@
 package LLD.MachineCodingExamples.ParkingLot;
 
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
+import java.time.LocalDateTime;
 
 public class ParkingLotManagement {
 
     private final ParkingArea parkingArea;
-    private HashSet<ParkingSpot> smallParkingSpots = new HashSet<>();
-    private HashSet<ParkingSpot> mediumParkingSpots = new HashSet<>();
-    private HashSet<ParkingSpot> largeParkingSpots = new HashSet<>();
-    private boolean isConfigured;
-    private List<Ticket> tickets = new ArrayList<>();
+    private final SpotAllocatingStrategy spotAllocatingStrategy;
+    private final FeeCalculationStrategy feeCalculationStrategy;
+    private final TicketService ticketService;
 
 
-    public ParkingLotManagement(ParkingArea parkingArea) {
+    public ParkingLotManagement(ParkingArea parkingArea, SpotAllocatingStrategy spotAllocatingStrategy, FeeCalculationStrategy feeCalculationStrategy,
+                                TicketService ticketService) {
         this.parkingArea = parkingArea;
+        this.spotAllocatingStrategy = spotAllocatingStrategy;
+        this.feeCalculationStrategy = feeCalculationStrategy;
+        this.ticketService = ticketService;
     }
 
-    private void configureParkingSpots() {
-        List<ParkingSpot> parkingSpotList = parkingArea.getParkingSpotList();
-
-        for (ParkingSpot spot : parkingSpotList) {
-            if (spot.getParkingSpotType().equals(ParkingSpotType.SMALL)) {
-                smallParkingSpots.add(spot);
-            } else if (spot.getParkingSpotType().equals(ParkingSpotType.MEDIUM)) {
-                mediumParkingSpots.add(spot);
-            } else {
-                largeParkingSpots.add(spot);
-            }
-        }
-    }
-
-    long calculateParkingFee(Ticket ticket) {
-        if(ticket.getExitTime()==null) {
-            throw new IllegalArgumentException("Ticket exit time is null");
-        }
-
-        ParkingSpot parkingSpotAlloted = ticket.getParkingSpot();
-
-        if (parkingSpotAlloted.getParkingSpotType().equals(ParkingSpotType.SMALL)) {
-            return 10 * (Duration.between(ticket.getEntryTime(), ticket.getExitTime()).toHours());
-        } else if (parkingSpotAlloted.getParkingSpotType().equals(ParkingSpotType.MEDIUM)) {
-            return 20 * (Duration.between(ticket.getEntryTime(), ticket.getExitTime()).toHours());
-        } else {
-            return 30 * (Duration.between(ticket.getEntryTime(), ticket.getExitTime()).toHours());
-        }
-
-    }
-
-    Ticket getTicketByVehicleNumber(String vehicleNumber) {
-        for (Ticket ticket : tickets) {
-            if (ticket.getVehicle().getVehicleNumber().equals(vehicleNumber)) {
-                return ticket;
-            }
-        }
-        return null;
-    }
-
-    private Ticket generateTicket(ParkingSpot parkingSpot, Vehicle vehicle) {
-        return new Ticket(parkingSpot, vehicle);
-    }
-
-    void allocateParkingSpot(Vehicle vehicle) {
+    /**
+     * Handles the entry of a vehicle into the parking lot. This method performs the following operations:
+     * <ul>
+     *     <li>Allocates a parking spot based on the vehicle's type and the chosen allocation strategy.</li>
+     *     <li>Generates a ticket for the vehicle based on the allocated parking spot and the current entry time.</li>
+     *     <li>Prints the generated ticket.</li>
+     * </ul>
+     * If a parking spot cannot be allocated, an {@link UnsupportedOperationException} is thrown.
+     *
+     * @param vehicle the vehicle entering the parking lot
+     * @throws UnsupportedOperationException if a parking spot cannot be allocated
+     */
+    void entryParkingLot(Vehicle vehicle) {
         /*
-        This function need to find the available parking spot for Vehicle
+         inside parking lot, there has to be 2 things on higher level -> entry and exit and then we will go from top to bottom till ticket generation
+         While entering:
+            - allocateSpot based on its type from parking area and chosen strategy for allocation
+            - generate ticket based on entry time
          */
-        ParkingSpot freeSpot = null;
-
-        if (!isConfigured) {
-            configureParkingSpots();
-            isConfigured = true;
+        ParkingSpot allocatedParkingSpot = spotAllocatingStrategy.allocateSpot(vehicle, parkingArea);
+        if (allocatedParkingSpot == null) {
+            throw new UnsupportedOperationException("Spot not allocated, either filled or not available");
         }
-
-        if (vehicle.getVehicleType().equals(VehicleType.SMALL)) {
-            /*
-            we have to find the SMALL available Parking spot from any floor
-             */
-            if (!smallParkingSpots.isEmpty()) {
-                freeSpot = smallParkingSpots.stream().findFirst().get();
-                smallParkingSpots.remove(freeSpot);
-            }
-        } else if (vehicle.getVehicleType().equals(VehicleType.MEDIUM)) {
-            if (!mediumParkingSpots.isEmpty()) {
-                freeSpot = mediumParkingSpots.stream().findFirst().get();
-                mediumParkingSpots.remove(freeSpot);
-            }
-        } else {
-            if (!largeParkingSpots.isEmpty()) {
-                freeSpot = largeParkingSpots.stream().findFirst().get();
-                largeParkingSpots.remove(freeSpot);
-            }
-        }
-        Ticket ticket = generateTicket(freeSpot, vehicle);
-        tickets.add(ticket);
-        System.out.println("Printing ticket so that i am aware about the id");
-        ticket.printTicket();
-        System.out.println("-----------------------------------------------------------------------------");
-
+        Ticket ticketGenerated = ticketService.generateTicket(allocatedParkingSpot, vehicle);
+        ticketService.printTicket(ticketGenerated);
     }
 
-
+    /**
+     * Handles the exit of a vehicle from the parking lot. This method performs the following operations:
+     * <ul>
+     *     <li>Retrieves the ticket associated with the vehicle based on its vehicle number.</li>
+     *     <li>Sets the exit time of the ticket to the provided time.</li>
+     *     <li>Deallocates the parking spot associated with the ticket based on the chosen deallocation strategy.</li>
+     *     <li>Calculates and prints the parking fee based on the ticket and the chosen fee calculation strategy.</li>
+     * </ul>
+     * If the ticket is not found, a {@link NullPointerException} may be thrown when attempting to access the ticket.
+     *
+     * @param vehicle the vehicle exiting the parking lot
+     * @param time the time at which the vehicle is exiting the parking lot
+     */
+    void exitParkingLot(Vehicle vehicle, LocalDateTime time) {
+        Ticket ticket = ticketService.getTicketByVehicleNumber(vehicle.getVehicleNumber());
+        ticket.setExitTime(time);
+        spotAllocatingStrategy.deallocateSpot(ticket, parkingArea);
+        System.out.println("Parking fee-"+ feeCalculationStrategy.calculateFee(ticket));
+    }
 
 }
