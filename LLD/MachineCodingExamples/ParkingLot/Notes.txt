@@ -1,0 +1,5 @@
+-- points to remember --
+1. Check for edge cases.
+2. Handle concurrency.
+3. Try to make it scalable -- but for that you need to practice and know various design pattern
+4. First try to cover the requirements with whatever design you can and then you can go for above points
